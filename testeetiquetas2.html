@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Etiquetas Zebra Térmica</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #cbd5e1; display: flex; flex-direction: column; min-height: 100vh; }
+    
+    header { background: #0f172a; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 16px; font-weight: bold; }
+    header button { background: #2563eb; color: #fff; border: none; padding: 9px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+    header button:hover { background: #1d4ed8; }
+
+    .main { display: flex; flex: 1; }
+    
+    .sidebar { width: 320px; background: #fff; border-right: 1px solid #94a3b8; padding: 15px; display: flex; flex-direction: column; gap: 12px; height: calc(100vh - 48px); overflow-y: auto; }
+    .alert-box { background: #fef3c7; border: 1px solid #f59e0b; padding: 10px; font-size: 12px; border-radius: 4px; color: #92400e; line-height: 1.4; }
+    .field label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; display: block; margin-bottom: 4px; }
+    .field textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; font-size: 12px; height: 320px; resize: vertical; font-family: monospace; }
+    
+    .preview-area { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 15px; height: calc(100vh - 48px); }
+
+    /* ETIQUETA TÉRMICA (100mm x 50mm) */
+    .thermal-label {
+      width: 100mm;
+      height: 50mm;
+      background: #fff;
+      border: 1px solid #94a3b8;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      page-break-after: always;
+      break-after: page;
+      box-sizing: border-box;
+    }
+
+    .info-col { flex: 1; padding-right: 12px; min-width: 0; }
+    .info-label { font-size: 9px; font-weight: bold; color: #666; text-transform: uppercase; margin-bottom: 2px; }
+    .driver-name { font-size: 17px; font-weight: 900; text-transform: uppercase; line-height: 1.15; margin-bottom: 12px; color: #000; word-break: break-word; }
+    .route-badge { display: inline-block; background: #000; color: #fff; font-size: 18px; font-weight: 900; padding: 4px 10px; border-radius: 4px; margin-right: 12px; }
+    .plate-text { font-size: 13px; font-weight: bold; color: #111; font-family: monospace; }
+
+    .qr-col { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-left: 1px solid #ccc; padding-left: 12px; flex-shrink: 0; }
+    .qr-box { display: flex; flex-direction: column; align-items: center; }
+    .qr-tag { font-size: 8px; font-weight: bold; text-transform: uppercase; color: #444; margin-top: 2px; }
+
+    @media print {
+      @page {
+        size: 100mm 50mm landscape;
+        margin: 0mm !important;
+      }
+      body, html { background: #fff !important; margin: 0 !important; padding: 0 !important; height: auto !important; }
+      header, .sidebar { display: none !important; }
+      .main { display: block !important; height: auto !important; }
+      .preview-area { padding: 0 !important; background: transparent !important; display: block !important; height: auto !important; }
+      .thermal-label { border: none !important; box-shadow: none !important; padding: 2mm 4mm !important; margin: 0 !important; page-break-after: always !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Etiquetas Zebra - Modo Operacional</h1>
+    <button onclick="window.print()">Imprimir (Ctrl + P)</button>
+  </header>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="alert-box">
+        <strong>Atenção no Ctrl + P:</strong><br>
+        1. <b>Layout:</b> Alterne entre Paisagem / Retrato para a etiqueta não sair deitada.<br>
+        2. <b>Margens:</b> Selecione <b>Nenhuma</b>.<br>
+        3. <b>Gráficos de segundo plano:</b> Marque a caixa.
+      </div>
+
+      <div class="field" style="display: flex; align-items: center; gap: 6px;">
+        <input type="checkbox" id="clean-accents" checked onchange="render()" style="width: auto;">
+        <label style="margin: 0; cursor: pointer;" for="clean-accents">Sem acentos no QR (Bipagem rápida)</label>
+      </div>
+
+      <div class="field" style="flex: 1; display: flex; flex-direction: column;">
+        <label>Lista de Motoristas (Edite aqui se precisar)</label>
+        <textarea id="data-input" oninput="render()"></textarea>
+      </div>
+    </div>
+
+    <div class="preview-area" id="labels-container"></div>
+  </div>
+
+  <script>
+    // Lista completa pré-carregada
+    const fullDataset = `ADILSON PEREIRA ZONATTO; 10A; EJI0F20
+ALISON GABRIEL SILVA; 14A+16A; BAS8G47
+ANA TEODORO SPECATO; 41A; PQO0C35
+ANDRE AGAPITO ALMEIDA; 47A; MKU8J53
+ANDRESSA MICHELE DA ROCHA MACEDO; FA1(LM); AVJ3I78
+ANDREY SANTANA DA CRUZ; 8A; QPZ3J04
+ANTONIO SERGIO DEL MOURO; 12A; ASH0C34
+ARIANE CRISTINA DA SILVA BARBOSA; SJ6(LM+GBLOG); EYB4C48
+CARLOS LEONEL DA FONSECA DE BOMFIM; CMG(LM+GBLOG); AUI7D49
+CLAUDIO BERNETZKI; PH; AWF2D38
+CRYSTTOFHER DIOGO PEREIRA; AL1; MLK6C72
+DANIELLY DANKO FERRAO; CP1; AWF1067
+DANIELLY DANKO FERRAO; CP3; AWF1068
+EDIMAR DE OLIVEIRA CORREA; 11A; FKT2G73
+EDSON LUIZ GRUBBA; 49A; BAR0725
+EDUARDO RICARDO GRACIANI; PR1; FJY7H11
+EZEQUIEL PEREIRA ALVES DE BASTOS; FA1-2(GBLOG); AAF0A35
+FABIO SPECATO; 07A; MGS0917
+FERNANDO FEK DUARTE; 41D-E; AVS2782
+FLAVIA DOS SANTOS MARANA; PH(GBLOHG); AAF0A35
+HELENA CAMILO DA SILVA; SJ2(LM); UBZ6I34
+HIGOR CARDOSO DOS SANTOS; CGS(LM+GBOG); UBH2H58
+ISAIAS TEOTONIO DE ARAUJO; 06A+06E; UCF9F85
+IZAEL ARMSTRONG DE COUTO; 03A; AZZ1B85
+JEFFERSON LUIZ MAGARI; CER; RFU8F36
+JOAO OLIVEIRA DE ALMEIDA JUNIOR; 17A; AUU4F08
+JOAO PAULO CANGUSSU CORDEIRO; 04A; AMO7I34
+JOEL OLIVEIRA CORREIA; 21A; OBE1J95
+JOSE ALMIRO ABREU DOS SANTOS; AR1/AR2; AUA7C63
+JOSE OLIDIR ZANONE; 20A; MCW5D57
+JOSÉ VALDO DOS SANTOS; CB1(LM); EEZ0C12
+JOYCE GULGIELMIM BASTOS; 25A+8B; AWA5E71
+KAMILA LERY CORDEIRO; BOC/TUN; FEE9D36
+KELEN DOS ANJOS GULGIELMIM; 05A; AYU8A67
+LEANDRO ELIAS DE LIMA; 26A; BDL8H07
+LUCIANO FABRICIO DO AMARAL; SJ2(GBLOG); MJS9J11
+LUIS HENRIQUE HOFFMANN DA R. C. DOS SANTOS; 28A; AWI0875
+MARCOS ALEXANDRE ANTUNES FERNANDES; 48A; SYU3I39
+MARIA REGINA PIVOVAR TOZATTO; 23A; UAS1H41
+MARIANA MIRANDA; PR2; AQQ7680
+MATHEUS ELIAS DOS SANTOS; 24A; HKN3F12
+Mhilena Nattany Domingues De Oliveira; 22A; REF7B49
+MICHELE EMILY DA FONSECA RIBEIRO(JAPÃO); CB3; ATL6575
+PABLO HENRIQUE SANTOS RIBEIRO; 13A; RFB8G78
+PAULO ROGERIO TEIXEIRA(JAPÃO); ITA/RBS; MJC1F16
+RAFAEL ARCANJO DE OLIVEIRA; 38A; AMG4H71
+RAMON FRAZÃO REIS; 19A; ATV4725
+RIOMAR PIRES DA SILVA; 09A; BEV8D78
+ROSILENE DE FATIMA DE MELO; AL2; MLK6C72
+SALETE DE OLIVEIRA BATISTA; FA2; IVO8G14
+SAMUEL CLEMENTINO; CB1(GBLOG); RUD7B49
+SERGIO FERNANDO BODZIAK; 02A; AYH2355
+SERGIO LUIZ FABRIS; 40A; MJC4E86
+THIEGO SEVERO BELLO OLIVEIRA; 45A; COS4221
+VALDETE DE FRANÇA CORREA; 01A; PWK2H76
+VANDISLEI DE OLIVEIRA; 29A; QIL7G95`;
+
+    function removeAccents(str) {
+      if (!str) return '';
+      return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    }
+
+    function render() {
+      const txt = document.getElementById('data-input').value;
+      const noAccents = document.getElementById('clean-accents').checked;
+      const container = document.getElementById('labels-container');
+      container.innerHTML = '';
+
+      const lines = txt.split('\n').filter(l => l.trim().length > 0);
+
+      lines.forEach(line => {
+        let parts = line.split(/[;\t]/);
+        if (parts.length < 2) parts = line.split(',');
+
+        const driver = (parts[0] || '').trim();
+        const route = (parts[1] || '').trim();
+        const plate = (parts[2] || '').trim().toUpperCase();
+        const hasPlate = plate && plate !== '-' && plate !== 'S/P' && plate !== 'N/A';
+
+        const driverVal = noAccents ? removeAccents(driver) : driver;
+
+        // Gera a imagem do QR Code diretamente via URL rápida
+        const qrDriverUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(driverVal)}`;
+        const qrPlateUrl = hasPlate ? `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(plate)}` : '';
+
+        const div = document.createElement('div');
+        div.className = 'thermal-label';
+        div.innerHTML = `
+          <div class="info-col">
+            <div class="info-label">MOTORISTA</div>
+            <div class="driver-name">${driver}</div>
+            <div style="display: flex; align-items: center;">
+              <span class="route-badge">${route || '-'}</span>
+              ${hasPlate ? `<span class="plate-text">PLACA: ${plate}</span>` : ''}
+            </div>
+          </div>
+          <div class="qr-col">
+            <div class="qr-box">
+              <img src="${qrDriverUrl}" style="${hasPlate ? 'width:62px;height:62px;' : 'width:92px;height:92px;'}; display:block;" alt="QR Motorista">
+              <span class="qr-tag">MOTORISTA</span>
+            </div>
+            ${hasPlate ? `
+              <div class="qr-box" style="border-top: 1px solid #ddd; padding-top: 4px;">
+                <img src="${qrPlateUrl}" style="width:40px;height:40px; display:block;" alt="QR Placa">
+                <span class="qr-tag">PLACA</span>
+              </div>
+            ` : ''}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    window.onload = function() {
+      document.getElementById('data-input').value = fullDataset;
+      render();
+    };
+  </script>
+</body>
+</html>
